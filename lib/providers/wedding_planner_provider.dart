@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 import '../models/task_model.dart';
 import '../models/guest_model.dart';
 import '../models/budget_model.dart';
+import '../models/wedding_model.dart';
 import '../services/firebase_service.dart';
 
 class WeddingPlannerProvider extends ChangeNotifier {
@@ -33,6 +34,12 @@ class WeddingPlannerProvider extends ChangeNotifier {
   String _authError = '';
   bool _isAuthenticating = false;
 
+  // Wedding Profile state
+  WeddingProfile? _weddingProfile;
+  bool _loadingWeddingProfile = false;
+  String _weddingProfileError = '';
+  bool _hasWeddingProfile = false;
+
   // Getters
   List<Task> get tasks => _tasks;
   bool get loadingTasks => _loadingTasks;
@@ -55,6 +62,11 @@ class WeddingPlannerProvider extends ChangeNotifier {
 
   String get authError => _authError;
   bool get isAuthenticating => _isAuthenticating;
+
+  WeddingProfile? get weddingProfile => _weddingProfile;
+  bool get loadingWeddingProfile => _loadingWeddingProfile;
+  String get weddingProfileError => _weddingProfileError;
+  bool get hasWeddingProfile => _hasWeddingProfile;
 
   // AUTHENTICATION METHODS
   Future<void> signUpWithEmail(String email, String password) async {
@@ -252,6 +264,57 @@ class WeddingPlannerProvider extends ChangeNotifier {
       await loadBudgets();
     } catch (e) {
       _budgetError = e.toString();
+      notifyListeners();
+    }
+  }
+
+  // ============ WEDDING PROFILE METHODS ============
+  Future<void> saveWeddingProfile(WeddingProfile profile) async {
+    _loadingWeddingProfile = true;
+    _weddingProfileError = '';
+    notifyListeners();
+
+    try {
+      await _firebaseService.saveWeddingProfile(profile);
+      _weddingProfile = profile;
+      _hasWeddingProfile = true;
+    } catch (e) {
+      _weddingProfileError = e.toString();
+      notifyListeners();
+      rethrow;
+    } finally {
+      _loadingWeddingProfile = false;
+      notifyListeners();
+    }
+  }
+
+  Future<void> loadWeddingProfile() async {
+    _loadingWeddingProfile = true;
+    _weddingProfileError = '';
+    notifyListeners();
+
+    try {
+      final profile = await _firebaseService.getWeddingProfile();
+      _weddingProfile = profile;
+      _hasWeddingProfile = profile != null;
+    } catch (e) {
+      _weddingProfileError = e.toString();
+    } finally {
+      _loadingWeddingProfile = false;
+      notifyListeners();
+    }
+  }
+
+  Future<void> checkWeddingProfile() async {
+    try {
+      final hasProfile = await _firebaseService.hasWeddingProfile();
+      _hasWeddingProfile = hasProfile;
+      if (hasProfile) {
+        await loadWeddingProfile();
+      }
+      notifyListeners();
+    } catch (e) {
+      _hasWeddingProfile = false;
       notifyListeners();
     }
   }

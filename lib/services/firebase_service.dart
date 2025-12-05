@@ -3,6 +3,7 @@ import 'package:firebase_auth/firebase_auth.dart';
 import '../models/task_model.dart';
 import '../models/guest_model.dart';
 import '../models/budget_model.dart';
+import '../models/wedding_model.dart';
 
 class FirebaseService {
   final FirebaseFirestore _firestore = FirebaseFirestore.instance;
@@ -63,6 +64,58 @@ class FirebaseService {
       await _auth.signOut();
     } catch (e) {
       throw Exception('Sign out failed: $e');
+    }
+  }
+
+  // WEDDING PROFILE OPERATIONS
+  Future<void> saveWeddingProfile(WeddingProfile profile) async {
+    try {
+      if (userId == null) throw Exception('User not authenticated');
+
+      final docId = profile.id ?? userId; // Use user ID as wedding profile ID
+      
+      await _firestore.collection('weddingProfiles').doc(docId).set({
+        'userId': userId,
+        'weddingName': profile.weddingName,
+        'brideName': profile.brideName,
+        'groomName': profile.groomName,
+        'weddingDate': profile.weddingDate,
+        'location': profile.location,
+        'theme': profile.theme,
+        'expectedGuests': profile.expectedGuests,
+        'budget': profile.budget,
+        'notes': profile.notes,
+        'createdAt': profile.createdAt ?? FieldValue.serverTimestamp(),
+        'updatedAt': FieldValue.serverTimestamp(),
+      });
+    } catch (e) {
+      throw Exception('Failed to save wedding profile: $e');
+    }
+  }
+
+  Future<WeddingProfile?> getWeddingProfile() async {
+    try {
+      if (userId == null) throw Exception('User not authenticated');
+
+      final doc = await _firestore.collection('weddingProfiles').doc(userId).get();
+      
+      if (doc.exists) {
+        return WeddingProfile.fromMap(doc.data() as Map<String, dynamic>, doc.id);
+      }
+      return null;
+    } catch (e) {
+      throw Exception('Failed to get wedding profile: $e');
+    }
+  }
+
+  Future<bool> hasWeddingProfile() async {
+    try {
+      if (userId == null) return false;
+
+      final doc = await _firestore.collection('weddingProfiles').doc(userId).get();
+      return doc.exists;
+    } catch (e) {
+      return false;
     }
   }
 

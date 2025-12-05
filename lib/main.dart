@@ -4,6 +4,7 @@ import 'package:firebase_core/firebase_core.dart';
 import 'package:firebase_auth/firebase_auth.dart';
 import 'providers/wedding_planner_provider.dart';
 import 'screens/login_screen.dart';
+import 'screens/wedding_details_screen.dart';
 import 'firebase_options.dart';
 
 void main() async {
@@ -71,6 +72,26 @@ class _HomeScreenState extends State<HomeScreen> {
   ];
 
   @override
+  void initState() {
+    super.initState();
+    _checkWeddingProfile();
+  }
+
+  Future<void> _checkWeddingProfile() async {
+    final provider = Provider.of<WeddingPlannerProvider>(context, listen: false);
+    await provider.checkWeddingProfile();
+    
+    // If no wedding profile, navigate to form
+    if (!provider.hasWeddingProfile && mounted) {
+      Navigator.of(context).push(
+        MaterialPageRoute(
+          builder: (_) => const WeddingDetailsScreen(),
+        ),
+      );
+    }
+  }
+
+  @override
   Widget build(BuildContext context) {
     return Scaffold(
       body: _pages[_selectedIndex],
@@ -135,7 +156,7 @@ class DashboardPage extends StatelessWidget {
                 child: Column(
                   mainAxisAlignment: MainAxisAlignment.center,
                   children: [
-                    const Icon(Icons.cake, size: 50, color: Colors.white),
+                    const Icon(Icons.favorite, size: 50, color: Colors.white),
                     const SizedBox(height: 10),
                     Text(
                       'Just 45 Days Away!',
