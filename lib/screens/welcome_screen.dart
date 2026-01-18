@@ -9,35 +9,37 @@ class WelcomeScreen extends StatefulWidget {
 }
 
 class _WelcomeScreenState extends State<WelcomeScreen> {
-  int _currentPage = 0;
-  final PageController _pageController = PageController();
+  late PageController _backgroundController;
+  int _currentImageIndex = 0;
 
-  final List<Map<String, String>> _pages = [
-    {
-      'title': '💍 Wedding Planner',
-      'description': 'Plan your perfect wedding with ease and organize everything in one place',
-    },
-    {
-      'title': '✅ Organize Tasks',
-      'description': 'Keep track of all your wedding tasks, deadlines, and priorities',
-    },
-    {
-      'title': '💰 Budget Management',
-      'description': 'Track your wedding expenses and manage your budget efficiently',
-    },
-    {
-      'title': '👥 Guest List',
-      'description': 'Organize your guest list and track RSVPs easily',
-    },
-    {
-      'title': '🎨 Gallery & Inspiration',
-      'description': 'Save your favorite wedding ideas and get inspired',
-    },
+  final List<String> _backgroundImages = [
+    'assets/wedding_bg1.jpg',
+    'assets/wedding_bg2.jpg',
+    'assets/wedding_bg4.jpg',
+    'assets/wedding_bg5.jpg',
   ];
 
   @override
+  void initState() {
+    super.initState();
+    _backgroundController = PageController();
+    // Auto-scroll background every 5 seconds
+    Future.delayed(const Duration(seconds: 5), _autoScroll);
+  }
+
+  void _autoScroll() {
+    if (mounted) {
+      _backgroundController.nextPage(
+        duration: const Duration(milliseconds: 500),
+        curve: Curves.easeInOut,
+      );
+      Future.delayed(const Duration(seconds: 5), _autoScroll);
+    }
+  }
+
+  @override
   void dispose() {
-    _pageController.dispose();
+    _backgroundController.dispose();
     super.dispose();
   }
 
@@ -53,144 +55,130 @@ class _WelcomeScreenState extends State<WelcomeScreen> {
   @override
   Widget build(BuildContext context) {
     return Scaffold(
-      body: Column(
+      body: Stack(
         children: [
-          // PageView
-          Expanded(
-            child: PageView.builder(
-              controller: _pageController,
-              onPageChanged: (index) {
-                setState(() {
-                  _currentPage = index;
-                });
-              },
-              itemCount: _pages.length,
-              itemBuilder: (context, index) {
-                return _buildPage(_pages[index]);
-              },
-            ),
+          // Background Image Carousel
+          PageView.builder(
+            controller: _backgroundController,
+            onPageChanged: (index) {
+              setState(() {
+                _currentImageIndex = index % _backgroundImages.length;
+              });
+            },
+            itemBuilder: (context, index) {
+              return Container(
+                decoration: BoxDecoration(
+                  image: DecorationImage(
+                    image: AssetImage(_backgroundImages[index % _backgroundImages.length]),
+                    fit: BoxFit.cover,
+                  ),
+                ),
+              );
+            },
           ),
           
-          // Dot Indicators
-          Padding(
-            padding: const EdgeInsets.symmetric(vertical: 20),
-            child: Row(
-              mainAxisAlignment: MainAxisAlignment.center,
-              children: List.generate(
-                _pages.length,
-                (index) => Container(
-                  margin: const EdgeInsets.symmetric(horizontal: 5),
-                  width: _currentPage == index ? 30 : 10,
-                  height: 10,
-                  decoration: BoxDecoration(
-                    borderRadius: BorderRadius.circular(5),
-                    color: _currentPage == index
-                        ? Theme.of(context).colorScheme.primary
-                        : Colors.grey[300],
+          // Content
+          Column(
+            mainAxisAlignment: MainAxisAlignment.start,
+            crossAxisAlignment: CrossAxisAlignment.center,
+            children: [
+              const SizedBox(height: 5),
+              
+              // Logo Image
+              Image.asset(
+                'assets/logo.png',
+                height: 500,
+                width: 500,
+              ),
+              
+              const SizedBox(height: 5),
+              
+              Text(
+                'Wedding Planner',
+                style: Theme.of(context).textTheme.headlineLarge?.copyWith(
+                  color: Colors.black,
+                  fontWeight: FontWeight.bold,
+                ),
+                textAlign: TextAlign.center,
+              ),
+              const SizedBox(height: 5),
+              
+              // Description
+              Padding(
+                padding: const EdgeInsets.symmetric(horizontal: 30),
+                child: Text(
+                  'Plan your perfect wedding with ease. Organize tasks, manage budget, track guests, and save inspiration all in one place.',
+                  style: Theme.of(context).textTheme.bodyLarge?.copyWith(
+                    color: Colors.black87,
+                    height: 1.5,
                   ),
+                  textAlign: TextAlign.center,
                 ),
               ),
-            ),
-          ),
-          
-          // Navigation Buttons
-          Padding(
-            padding: const EdgeInsets.all(20),
-            child: Row(
-              mainAxisAlignment: MainAxisAlignment.spaceBetween,
-              children: [
-                // Back Button
-                if (_currentPage > 0)
-                  ElevatedButton(
-                    style: ElevatedButton.styleFrom(
-                      backgroundColor: Colors.grey[300],
-                    ),
-                    onPressed: () {
-                      _pageController.previousPage(
-                        duration: const Duration(milliseconds: 300),
-                        curve: Curves.easeInOut,
-                      );
-                    },
-                    child: const Text(
-                      'Back',
-                      style: TextStyle(color: Colors.black),
-                    ),
-                  )
-                else
-                  const SizedBox(width: 80),
-                
-                // Next/Get Started Button
-                ElevatedButton(
-                  style: ElevatedButton.styleFrom(
-                    backgroundColor: Theme.of(context).colorScheme.primary,
-                    padding: const EdgeInsets.symmetric(horizontal: 30, vertical: 12),
-                  ),
-                  onPressed: () async {
-                    if (_currentPage == _pages.length - 1) {
-                      // Last page - go to login
-                      await _markWelcomeComplete();
-                    } else {
-                      // Go to next page
-                      _pageController.nextPage(
-                        duration: const Duration(milliseconds: 300),
-                        curve: Curves.easeInOut,
-                      );
-                    }
-                  },
-                  child: Text(
-                    _currentPage == _pages.length - 1 ? 'Get Started' : 'Next',
-                    style: const TextStyle(
-                      color: Colors.white,
-                      fontSize: 16,
-                      fontWeight: FontWeight.bold,
-                    ),
-                  ),
-                ),
-              ],
-            ),
-          ),
-        ],
-      ),
-    );
-  }
+              const SizedBox(height: 15),
 
-  Widget _buildPage(Map<String, String> page) {
-    return Container(
-      decoration: BoxDecoration(
-        gradient: LinearGradient(
-          colors: [
-            Theme.of(context).colorScheme.primary,
-            Theme.of(context).colorScheme.primary.withOpacity(0.7),
-          ],
-          begin: Alignment.topLeft,
-          end: Alignment.bottomRight,
-        ),
-      ),
-      child: Column(
-        mainAxisAlignment: MainAxisAlignment.center,
-        children: [
-          // Title with emoji
-          Text(
-            page['title']!,
-            style: Theme.of(context).textTheme.headlineLarge?.copyWith(
-              color: Colors.white,
-              fontWeight: FontWeight.bold,
-            ),
-            textAlign: TextAlign.center,
-          ),
-          const SizedBox(height: 40),
-          
-          // Description
-          Padding(
-            padding: const EdgeInsets.symmetric(horizontal: 30),
-            child: Text(
-              page['description']!,
-              style: Theme.of(context).textTheme.bodyLarge?.copyWith(
-                color: Colors.white70,
-                height: 1.5,
+              // Dot Indicators for Background Images
+              Row(
+                mainAxisAlignment: MainAxisAlignment.center,
+                children: List.generate(
+                  _backgroundImages.length,
+                  (index) => Container(
+                    margin: const EdgeInsets.symmetric(horizontal: 5),
+                    width: _currentImageIndex == index ? 10 : 8,
+                    height: 8,
+                    decoration: BoxDecoration(
+                      shape: BoxShape.circle,
+                      color: _currentImageIndex == index
+                          ? Colors.white
+                          : Colors.white60,
+                    ),
+                  ),
+                ),
               ),
-              textAlign: TextAlign.center,
-            ),
+              const SizedBox(height: 60),
+              
+              // Get Started Button
+              Padding(
+                padding: const EdgeInsets.symmetric(horizontal: 30),
+                child: Container(
+                  decoration: BoxDecoration(
+                    borderRadius: BorderRadius.circular(50),
+                    gradient: LinearGradient(
+                      colors: [const Color.fromARGB(255, 65, 22, 73), const Color.fromARGB(255, 103, 27, 52)],
+                      begin: Alignment.topLeft,
+                      end: Alignment.bottomRight,
+                    ),
+                    
+                    border: Border.all(
+                      color: Colors.white.withOpacity(0.5),
+                      width: 2,
+                    ),
+                  ),
+                  child: SizedBox(
+                    width: double.infinity,
+                    height: 50,
+                    child: ElevatedButton(
+                      style: ElevatedButton.styleFrom(
+                        backgroundColor: Colors.transparent,
+                        elevation: 0,
+                        shape: RoundedRectangleBorder(
+                          borderRadius: BorderRadius.circular(50),
+                        ),
+                      ),
+                      onPressed: _markWelcomeComplete,
+                      child: const Text(
+                        'Get Started',
+                        style: TextStyle(
+                          color: Colors.white,
+                          fontSize: 18,
+                          fontWeight: FontWeight.bold,
+                        ),
+                      ),
+                    ),
+                  ),
+                ),
+              ),
+            ],
           ),
         ],
       ),
