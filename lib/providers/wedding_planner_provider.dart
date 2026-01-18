@@ -357,8 +357,10 @@ class WeddingPlannerProvider extends ChangeNotifier {
 
     try {
       _galleryItems = await _firebaseService.getGalleryItems();
+      print('✅ Gallery loaded successfully: ${_galleryItems.length} items');
     } catch (e) {
       _galleryError = e.toString();
+      print('❌ Error loading gallery: $e');
     } finally {
       _loadingGallery = false;
       notifyListeners();
@@ -367,10 +369,13 @@ class WeddingPlannerProvider extends ChangeNotifier {
 
   Future<void> addGalleryItem(GalleryItem item) async {
     try {
+      print('➕ Adding gallery item: ${item.title}');
       await _firebaseService.addGalleryItem(item);
+      print('✅ Item added to Firestore');
       await loadGallery();
     } catch (e) {
       _galleryError = e.toString();
+      print('❌ Error adding gallery item: $e');
       notifyListeners();
     }
   }

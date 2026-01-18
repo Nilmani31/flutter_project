@@ -1,3 +1,5 @@
+import 'package:cloud_firestore/cloud_firestore.dart';
+
 class GalleryItem {
   String? id;
   String title;
@@ -33,8 +35,8 @@ class GalleryItem {
       'description': description,
       'url': url,
       'category': category,
-      'createdAt': createdAt,
-      'updatedAt': updatedAt,
+      'createdAt': createdAt?.toIso8601String(),
+      'updatedAt': updatedAt?.toIso8601String(),
     };
   }
 
@@ -47,11 +49,32 @@ class GalleryItem {
       url: map['url'] ?? '',
       category: map['category'],
       createdAt: map['createdAt'] != null 
-          ? DateTime.parse(map['createdAt'].toString())
+          ? _parseDateTime(map['createdAt'])
           : null,
       updatedAt: map['updatedAt'] != null 
-          ? DateTime.parse(map['updatedAt'].toString())
+          ? _parseDateTime(map['updatedAt'])
           : null,
     );
+  }
+
+  // Helper method to parse DateTime from Firestore Timestamp or string
+  static DateTime? _parseDateTime(dynamic value) {
+    if (value == null) return null;
+    
+    try {
+      // If it's a Firestore Timestamp object (from cloud_firestore)
+      if (value is Timestamp) {
+        return value.toDate();
+      }
+      // If it's a string (ISO8601)
+      if (value is String) {
+        return DateTime.parse(value);
+      }
+      // Fallback: try to parse string representation
+      print('Unknown datetime type: ${value.runtimeType}, value: $value');
+    } catch (e) {
+      print('❌ Error parsing date: $e, value: $value');
+    }
+    return null;
   }
 }

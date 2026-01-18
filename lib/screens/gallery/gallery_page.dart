@@ -11,6 +11,15 @@ class GalleryPage extends StatefulWidget {
 }
 
 class _GalleryPageState extends State<GalleryPage> {
+  @override
+  void initState() {
+    super.initState();
+    // Load gallery items when page opens
+    Future.microtask(() {
+      Provider.of<WeddingPlannerProvider>(context, listen: false).loadGallery();
+    });
+  }
+
   void _showAddImageDialog(BuildContext context, WeddingPlannerProvider provider) {
     final titleController = TextEditingController();
     final urlController = TextEditingController();
@@ -224,33 +233,43 @@ class _GalleryItemCard extends StatelessWidget {
                     padding: const EdgeInsets.all(8),
                     child: Column(
                       crossAxisAlignment: CrossAxisAlignment.start,
+                      mainAxisSize: MainAxisSize.min,
                       children: [
                         Chip(
                           label: Text(
                             item.category ?? 'Uncategorized',
-                            style: const TextStyle(fontSize: 10),
+                            style: const TextStyle(fontSize: 9),
                           ),
                           backgroundColor: Colors.pink.withOpacity(0.2),
+                          padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 2),
+                          materialTapTargetSize: MaterialTapTargetSize.shrinkWrap,
                         ),
                         const SizedBox(height: 4),
-                        Text(
-                          item.title,
-                          maxLines: 1,
-                          overflow: TextOverflow.ellipsis,
-                          style: Theme.of(context).textTheme.labelSmall?.copyWith(
-                            fontWeight: FontWeight.w600,
-                          ),
-                        ),
-                        if (item.description.isNotEmpty)
-                          Text(
-                            item.description,
-                            maxLines: 1,
+                        Flexible(
+                          child: Text(
+                            item.title,
+                            maxLines: 2,
                             overflow: TextOverflow.ellipsis,
                             style: Theme.of(context).textTheme.labelSmall?.copyWith(
-                              color: Colors.grey[600],
-                              fontSize: 10,
+                              fontWeight: FontWeight.w600,
+                              fontSize: 12,
                             ),
                           ),
+                        ),
+                        if (item.description.isNotEmpty) ...[
+                          const SizedBox(height: 2),
+                          Flexible(
+                            child: Text(
+                              item.description,
+                              maxLines: 2,
+                              overflow: TextOverflow.ellipsis,
+                              style: Theme.of(context).textTheme.labelSmall?.copyWith(
+                                color: Colors.grey[600],
+                                fontSize: 9,
+                              ),
+                            ),
+                          ),
+                        ]
                       ],
                     ),
                   ),

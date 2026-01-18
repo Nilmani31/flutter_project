@@ -641,10 +641,16 @@ class FirebaseService {
     }
   }
 
-  // GALLERY OPERATIONS
+  // GALLERY OPERATIONS (SAVED UNDER USER DOCUMENT)
   Future<void> addGalleryItem(GalleryItem item) async {
     try {
-      await _firestore.collection('gallery').add(item.toMap());
+      if (userId == null) throw Exception('User not authenticated');
+      
+      await _firestore
+          .collection('users')
+          .doc(userId)
+          .collection('gallery')
+          .add(item.toMap());
     } catch (e) {
       throw Exception('Failed to add gallery item: $e');
     }
@@ -652,38 +658,70 @@ class FirebaseService {
 
   Future<List<GalleryItem>> getGalleryItems() async {
     try {
+      if (userId == null) throw Exception('User not authenticated');
+      
+      print('📥 Fetching gallery items for user: $userId');
+      
       final snapshot = await _firestore
+          .collection('users')
+          .doc(userId)
           .collection('gallery')
-          .orderBy('createdAt', descending: true)
           .get();
 
-      return snapshot.docs
-          .map((doc) => GalleryItem.fromMap(doc.data(), doc.id))
+      print('📦 Found ${snapshot.docs.length} gallery items');
+      
+      final items = snapshot.docs
+          .map((doc) {
+            print('📄 Document: ${doc.id}, Data: ${doc.data()}');
+            return GalleryItem.fromMap(doc.data(), doc.id);
+          })
           .toList();
+      
+      // Sort by createdAt in descending order
+      items.sort((a, b) => (b.createdAt ?? DateTime(2000)).compareTo(a.createdAt ?? DateTime(2000)));
+      
+      print('✅ Gallery items fetched and sorted: ${items.length} items');
+      return items;
     } catch (e) {
+      print('❌ Error fetching gallery items: $e');
       throw Exception('Failed to fetch gallery items: $e');
     }
   }
 
   Future<List<GalleryItem>> getGalleryByCategory(String category) async {
     try {
+      if (userId == null) throw Exception('User not authenticated');
+      
       final snapshot = await _firestore
+          .collection('users')
+          .doc(userId)
           .collection('gallery')
           .where('category', isEqualTo: category)
-          .orderBy('createdAt', descending: true)
           .get();
 
-      return snapshot.docs
+      final items = snapshot.docs
           .map((doc) => GalleryItem.fromMap(doc.data(), doc.id))
           .toList();
+      
+      // Sort by createdAt in descending order
+      items.sort((a, b) => (b.createdAt ?? DateTime(2000)).compareTo(a.createdAt ?? DateTime(2000)));
+      
+      return items;
     } catch (e) {
-      throw Exception('Failed to fetch gallery items: $e');
+      throw Exception('Failed to fetch gallery items by category: $e');
     }
   }
 
   Future<void> updateGalleryItem(String itemId, GalleryItem item) async {
     try {
-      await _firestore.collection('gallery').doc(itemId).update(item.toMap());
+      if (userId == null) throw Exception('User not authenticated');
+      
+      await _firestore
+          .collection('users')
+          .doc(userId)
+          .collection('gallery')
+          .doc(itemId)
+          .update(item.toMap());
     } catch (e) {
       throw Exception('Failed to update gallery item: $e');
     }
@@ -691,7 +729,14 @@ class FirebaseService {
 
   Future<void> deleteGalleryItem(String itemId) async {
     try {
-      await _firestore.collection('gallery').doc(itemId).delete();
+      if (userId == null) throw Exception('User not authenticated');
+      
+      await _firestore
+          .collection('users')
+          .doc(userId)
+          .collection('gallery')
+          .doc(itemId)
+          .delete();
     } catch (e) {
       throw Exception('Failed to delete gallery item: $e');
     }
