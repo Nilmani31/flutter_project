@@ -410,6 +410,104 @@ class _TasksPageState extends State<TasksPage> {
     );
   }
 
+  void _showEditTaskDialog(BuildContext context, WeddingPlannerProvider provider, Task task) {
+    final titleController = TextEditingController(text: task.title);
+    final descriptionController = TextEditingController(text: task.subtitle);
+    final dueDateController = TextEditingController(text: task.dueDate.toString().split(' ')[0]);
+    String priority = task.priority;
+    String category = task.category;
+
+    showDialog(
+      context: context,
+      builder: (ctx) => AlertDialog(
+        title: const Text('Edit Task'),
+        content: SingleChildScrollView(
+          child: Column(
+            mainAxisSize: MainAxisSize.min,
+            children: [
+              TextField(
+                controller: titleController,
+                decoration: const InputDecoration(
+                  labelText: 'Task Title',
+                  border: OutlineInputBorder(),
+                ),
+              ),
+              const SizedBox(height: 12),
+              TextField(
+                controller: descriptionController,
+                decoration: const InputDecoration(
+                  labelText: 'Description',
+                  border: OutlineInputBorder(),
+                ),
+                maxLines: 3,
+              ),
+              const SizedBox(height: 12),
+              TextField(
+                controller: dueDateController,
+                decoration: const InputDecoration(
+                  labelText: 'Due Date (YYYY-MM-DD)',
+                  border: OutlineInputBorder(),
+                ),
+              ),
+              const SizedBox(height: 12),
+              DropdownButtonFormField<String>(
+                value: priority,
+                items: ['High', 'Medium', 'Low'].map((p) => 
+                  DropdownMenuItem(value: p, child: Text(p))
+                ).toList(),
+                onChanged: (value) => priority = value ?? 'Medium',
+                decoration: const InputDecoration(
+                  labelText: 'Priority',
+                  border: OutlineInputBorder(),
+                ),
+              ),
+              const SizedBox(height: 12),
+              DropdownButtonFormField<String>(
+                value: category,
+                items: _categories.skip(1).map((c) => 
+                  DropdownMenuItem(value: c, child: Text(c))
+                ).toList(),
+                onChanged: (value) => category = value ?? 'Venue',
+                decoration: const InputDecoration(
+                  labelText: 'Category',
+                  border: OutlineInputBorder(),
+                ),
+              ),
+            ],
+          ),
+        ),
+        actions: [
+          TextButton(
+            onPressed: () => Navigator.pop(ctx),
+            child: const Text('Cancel'),
+          ),
+          ElevatedButton(
+            onPressed: () async {
+              if (titleController.text.isNotEmpty) {
+                final updatedTask = task.copyWith(
+                  title: titleController.text,
+                  subtitle: descriptionController.text,
+                  dueDate: DateTime.tryParse(dueDateController.text) ?? task.dueDate,
+                  priority: priority,
+                  category: category,
+                  updatedAt: DateTime.now(),
+                );
+                await provider.updateTask(updatedTask);
+                if (context.mounted) {
+                  Navigator.pop(ctx);
+                  ScaffoldMessenger.of(context).showSnackBar(
+                    const SnackBar(content: Text('Task updated successfully!')),
+                  );
+                }
+              }
+            },
+            child: const Text('Update Task'),
+          ),
+        ],
+      ),
+    );
+  }
+
   @override
   Widget build(BuildContext context) {
     return Consumer<WeddingPlannerProvider>(
@@ -466,6 +564,7 @@ class _TasksPageState extends State<TasksPage> {
                               final updatedTask = task.copyWith(isCompleted: value ?? false);
                               await provider.updateTask(updatedTask);
                             },
+                            onEdit: () => _showEditTaskDialog(context, provider, task),
                             onDelete: () async {
                               await provider.deleteTask(task.id ?? '');
                               if (context.mounted) {
@@ -564,6 +663,77 @@ class _BudgetPageState extends State<BudgetPage> {
               }
             },
             child: const Text('Add'),
+          ),
+        ],
+      ),
+    );
+  }
+
+  void _showEditBudgetDialog(BuildContext context, WeddingPlannerProvider provider, Budget budget) {
+    final categoryController = TextEditingController(text: budget.category);
+    final amountController = TextEditingController(text: budget.amount.toString());
+    final notesController = TextEditingController(text: budget.notes);
+
+    showDialog(
+      context: context,
+      builder: (ctx) => AlertDialog(
+        title: const Text('Edit Budget Item'),
+        content: SingleChildScrollView(
+          child: Column(
+            mainAxisSize: MainAxisSize.min,
+            children: [
+              TextField(
+                controller: categoryController,
+                decoration: const InputDecoration(
+                  labelText: 'Category (e.g., Venue, Catering)',
+                  border: OutlineInputBorder(),
+                ),
+              ),
+              const SizedBox(height: 12),
+              TextField(
+                controller: amountController,
+                keyboardType: TextInputType.number,
+                decoration: const InputDecoration(
+                  labelText: 'Amount (\$)',
+                  border: OutlineInputBorder(),
+                ),
+              ),
+              const SizedBox(height: 12),
+              TextField(
+                controller: notesController,
+                decoration: const InputDecoration(
+                  labelText: 'Notes',
+                  border: OutlineInputBorder(),
+                ),
+                maxLines: 2,
+              ),
+            ],
+          ),
+        ),
+        actions: [
+          TextButton(
+            onPressed: () => Navigator.pop(ctx),
+            child: const Text('Cancel'),
+          ),
+          ElevatedButton(
+            onPressed: () async {
+              if (categoryController.text.isNotEmpty && amountController.text.isNotEmpty) {
+                final updatedBudget = budget.copyWith(
+                  category: categoryController.text,
+                  amount: double.tryParse(amountController.text) ?? budget.amount,
+                  notes: notesController.text,
+                  updatedAt: DateTime.now(),
+                );
+                await provider.updateBudget(updatedBudget);
+                if (context.mounted) {
+                  Navigator.pop(ctx);
+                  ScaffoldMessenger.of(context).showSnackBar(
+                    const SnackBar(content: Text('Budget item updated!')),
+                  );
+                }
+              }
+            },
+            child: const Text('Update'),
           ),
         ],
       ),
@@ -679,6 +849,10 @@ class _BudgetPageState extends State<BudgetPage> {
                         subtitle: Text('\$${budget.amount.toStringAsFixed(2)} (${percentage.toStringAsFixed(1)}%)'),
                         trailing: PopupMenuButton(
                           itemBuilder: (context) => [
+                            PopupMenuItem(
+                              child: const Text('Edit'),
+                              onTap: () => _showEditBudgetDialog(context, provider, budget),
+                            ),
                             PopupMenuItem(
                               child: const Text('Delete'),
                               onTap: () async {
@@ -813,6 +987,99 @@ class _GuestsPageState extends State<GuestsPage> {
     );
   }
 
+  void _showEditGuestDialog(BuildContext context, WeddingPlannerProvider provider, Guest guest) {
+    final nameController = TextEditingController(text: guest.name);
+    final emailController = TextEditingController(text: guest.email);
+    final phoneController = TextEditingController(text: guest.phone);
+    String status = guest.status;
+    bool plus1 = guest.hasPlus1;
+
+    showDialog(
+      context: context,
+      builder: (ctx) => AlertDialog(
+        title: const Text('Edit Guest'),
+        content: SingleChildScrollView(
+          child: Column(
+            mainAxisSize: MainAxisSize.min,
+            children: [
+              TextField(
+                controller: nameController,
+                decoration: const InputDecoration(
+                  labelText: 'Guest Name',
+                  border: OutlineInputBorder(),
+                ),
+              ),
+              const SizedBox(height: 12),
+              TextField(
+                controller: emailController,
+                keyboardType: TextInputType.emailAddress,
+                decoration: const InputDecoration(
+                  labelText: 'Email',
+                  border: OutlineInputBorder(),
+                ),
+              ),
+              const SizedBox(height: 12),
+              TextField(
+                controller: phoneController,
+                keyboardType: TextInputType.phone,
+                decoration: const InputDecoration(
+                  labelText: 'Phone',
+                  border: OutlineInputBorder(),
+                ),
+              ),
+              const SizedBox(height: 12),
+              DropdownButtonFormField<String>(
+                value: status,
+                items: ['Confirmed', 'Pending', 'Declined'].map((s) => 
+                  DropdownMenuItem(value: s, child: Text(s))
+                ).toList(),
+                onChanged: (value) => status = value ?? 'Pending',
+                decoration: const InputDecoration(
+                  labelText: 'Status',
+                  border: OutlineInputBorder(),
+                ),
+              ),
+              const SizedBox(height: 12),
+              CheckboxListTile(
+                title: const Text('Plus One'),
+                value: plus1,
+                onChanged: (value) => plus1 = value ?? false,
+              ),
+            ],
+          ),
+        ),
+        actions: [
+          TextButton(
+            onPressed: () => Navigator.pop(ctx),
+            child: const Text('Cancel'),
+          ),
+          ElevatedButton(
+            onPressed: () async {
+              if (nameController.text.isNotEmpty) {
+                final updatedGuest = guest.copyWith(
+                  name: nameController.text,
+                  email: emailController.text,
+                  phone: phoneController.text,
+                  status: status,
+                  hasPlus1: plus1,
+                  updatedAt: DateTime.now(),
+                );
+                await provider.updateGuest(updatedGuest);
+                if (context.mounted) {
+                  Navigator.pop(ctx);
+                  ScaffoldMessenger.of(context).showSnackBar(
+                    const SnackBar(content: Text('Guest updated successfully!')),
+                  );
+                }
+              }
+            },
+            child: const Text('Update Guest'),
+          ),
+        ],
+      ),
+    );
+  }
+
   @override
   void dispose() {
     _searchController.dispose();
@@ -891,6 +1158,7 @@ class _GuestsPageState extends State<GuestsPage> {
                             phone: guest.phone,
                             status: guest.status,
                             hasPlus1: guest.hasPlus1,
+                            onEdit: () => _showEditGuestDialog(context, provider, guest),
                             onDelete: () async {
                               await provider.deleteGuest(guest.id ?? '');
                               if (context.mounted) {
@@ -1423,6 +1691,7 @@ class _TaskCard extends StatelessWidget {
   final String priority;
   final bool isCompleted;
   final Function(bool?)? onCheckboxChanged;
+  final VoidCallback? onEdit;
   final VoidCallback? onDelete;
 
   const _TaskCard({
@@ -1432,6 +1701,7 @@ class _TaskCard extends StatelessWidget {
     required this.priority,
     required this.isCompleted,
     this.onCheckboxChanged,
+    this.onEdit,
     this.onDelete,
   });
 
@@ -1484,6 +1754,11 @@ class _TaskCard extends StatelessWidget {
                 ],
               ),
             ),
+            if (onEdit != null)
+              IconButton(
+                icon: const Icon(Icons.edit, size: 20, color: Colors.blue),
+                onPressed: onEdit,
+              ),
             if (onDelete != null)
               IconButton(
                 icon: const Icon(Icons.delete, size: 20, color: Colors.red),
@@ -1502,6 +1777,7 @@ class _GuestCard extends StatelessWidget {
   final String phone;
   final String status;
   final bool hasPlus1;
+  final VoidCallback? onEdit;
   final VoidCallback? onDelete;
 
   const _GuestCard({
@@ -1510,6 +1786,7 @@ class _GuestCard extends StatelessWidget {
     required this.phone,
     required this.status,
     required this.hasPlus1,
+    this.onEdit,
     this.onDelete,
   });
 
@@ -1555,6 +1832,13 @@ class _GuestCard extends StatelessWidget {
                     fontWeight: FontWeight.w500,
                   ),
                 ),
+                if (onEdit != null)
+                  IconButton(
+                    icon: const Icon(Icons.edit, size: 20, color: Colors.blue),
+                    onPressed: onEdit,
+                    constraints: const BoxConstraints(),
+                    padding: const EdgeInsets.only(left: 8),
+                  ),
                 if (onDelete != null)
                   IconButton(
                     icon: const Icon(Icons.delete, size: 20, color: Colors.red),
@@ -1877,13 +2161,9 @@ class _SplashScreenState extends State<SplashScreen> {
         // User is logged in → go to home
         print('DEBUG: User logged in, navigating to home');
         Navigator.of(context).pushReplacementNamed('/home');
-      } else if (welcomeSeen) {
-        // Welcome was shown before → go to login
-        print('DEBUG: Welcome seen, navigating to login');
-        Navigator.of(context).pushReplacementNamed('/login');
       } else {
-        // First time → show welcome
-        print('DEBUG: First time, navigating to welcome');
+        // Show welcome screen first (new users or returning users who logged out)
+        print('DEBUG: Navigating to welcome');
         Navigator.of(context).pushReplacementNamed('/welcome');
       }
     } catch (e) {

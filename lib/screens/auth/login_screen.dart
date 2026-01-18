@@ -1,5 +1,6 @@
 import 'package:flutter/material.dart';
 import '../../providers/user_provider.dart';
+import '../../providers/wedding_planner_provider.dart';
 import 'package:provider/provider.dart';
 import 'signup_screen.dart';
 
@@ -34,13 +35,22 @@ class _LoginScreenState extends State<LoginScreen> {
 
     try {
       final userProvider = context.read<UserProvider>();
+      final weddingProvider = context.read<WeddingPlannerProvider>();
+      
       bool success = await userProvider.userLogin(
         userID: _userIDController.text.trim(),
         password: _passwordController.text,
       );
 
       if (success && mounted) {
-        Navigator.of(context).pushReplacementNamed('/home');
+        // Load user's wedding data (tasks, guests, budgets, etc.)
+        print('DEBUG: Login successful, initializing user data...');
+        await weddingProvider.initializeData();
+        print('DEBUG: User data initialized, navigating to home');
+        
+        if (mounted) {
+          Navigator.of(context).pushReplacementNamed('/home');
+        }
       } else if (!success && mounted) {
         ScaffoldMessenger.of(context).showSnackBar(
           SnackBar(content: Text('Login failed: ${userProvider.authError}')),
