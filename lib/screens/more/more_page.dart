@@ -3,6 +3,7 @@ import 'package:provider/provider.dart';
 import '../../providers/wedding_planner_provider.dart';
 import '../vendors/vendor_products_page.dart';
 import '../gallery/gallery_page.dart';
+import 'profile_page.dart';
 
 class MorePage extends StatelessWidget {
   const MorePage({super.key});
@@ -48,6 +49,18 @@ class MorePage extends StatelessWidget {
       ),
       body: ListView(
         children: [
+          _MoreMenuItem(
+            icon: Icons.person,
+            title: 'Profile',
+            subtitle: 'View and edit your profile',
+            onTap: () {
+              Navigator.of(context).push(
+                MaterialPageRoute(
+                  builder: (_) => ProfilePage(),
+                ),
+              );
+            },
+          ),
           _MoreMenuItem(
             icon: Icons.calendar_today,
             title: 'Timeline',
