@@ -45,6 +45,9 @@ dependencies:
   # State Management
   provider: ^6.1.0
   
+  # Local Storage
+  shared_preferences: ^2.2.0
+  
   # Serialization
   json_serializable: ^6.7.1
   json_annotation: ^4.8.1

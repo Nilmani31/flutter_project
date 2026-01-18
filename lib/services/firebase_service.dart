@@ -1,18 +1,67 @@
 import 'package:cloud_firestore/cloud_firestore.dart';
-import 'package:firebase_auth/firebase_auth.dart';
+import 'package:firebase_auth/firebase_auth.dart' as firebase_auth;
 import '../models/task_model.dart';
 import '../models/guest_model.dart';
 import '../models/budget_model.dart';
 import '../models/wedding_model.dart';
+import '../models/user_model.dart';
+import '../models/vendor_model.dart';
+import '../models/vendor_product_model.dart';
+import '../models/gallery_item_model.dart';
 
 class FirebaseService {
   final FirebaseFirestore _firestore = FirebaseFirestore.instance;
-  final FirebaseAuth _auth = FirebaseAuth.instance;
+  final firebase_auth.FirebaseAuth _auth = firebase_auth.FirebaseAuth.instance;
 
   // Get current user ID
   String? get userId => _auth.currentUser?.uid;
 
   // AUTHENTICATION
+  Future<String> signUpUser(User user) async {
+    try {
+      print('DEBUG: Starting signup for ${user.email}');
+      
+      // Create user in Firebase Authentication
+      final userCredential = await _auth.createUserWithEmailAndPassword(
+        email: user.email,
+        password: user.password,
+      );
+
+      print('DEBUG: Firebase Auth user created: ${userCredential.user?.uid}');
+
+      // Save complete user details in Firestore 'users' collection
+      if (userCredential.user != null) {
+        final userId = userCredential.user!.uid;
+        print('DEBUG: Saving user details to Firestore for $userId');
+        
+        final userData = {
+          'uid': userId,
+          'userID': user.userID,
+          'email': user.email,
+          'name': user.name,
+          'contact': user.contact,
+          'userImage': user.userImage,
+          'createdAt': FieldValue.serverTimestamp(),
+          'updatedAt': FieldValue.serverTimestamp(),
+          'lastLogin': FieldValue.serverTimestamp(),
+          'isActive': true,
+          'weddingIds': [],
+        };
+        
+        print('DEBUG: User data to save: $userData');
+        
+        await _firestore.collection('users').doc(userId).set(userData);
+        
+        print('DEBUG: User successfully saved to Firestore!');
+        return userId;
+      }
+      throw Exception('User creation failed');
+    } catch (e) {
+      print('ERROR in signUpUser: $e');
+      throw Exception('Sign up failed: $e');
+    }
+  }
+
   Future<void> signUpWithEmail(String email, String password) async {
     try {
       // Create user in Firebase Authentication
@@ -409,6 +458,242 @@ class FirebaseService {
       };
     } catch (e) {
       throw Exception('Failed to fetch stats: $e');
+    }
+  }
+
+  // USER OPERATIONS
+  Future<void> saveUser(User user) async {
+    try {
+      if (userId == null) throw Exception('User not authenticated');
+
+      await _firestore.collection('users').doc(userId).set(user.toMap(), SetOptions(merge: true));
+    } catch (e) {
+      throw Exception('Failed to save user: $e');
+    }
+  }
+
+  Future<User?> getAppUser(String userId) async {
+    try {
+      final doc = await _firestore.collection('users').doc(userId).get();
+      
+      if (doc.exists) {
+        return User.fromMap(doc.data() as Map<String, dynamic>, doc.id);
+      }
+      return null;
+    } catch (e) {
+      throw Exception('Failed to get user: $e');
+    }
+  }
+
+  Future<void> updateUserProfile(User user) async {
+    try {
+      if (userId == null) throw Exception('User not authenticated');
+
+      await _firestore.collection('users').doc(userId).update({
+        'name': user.name,
+        'contact': user.contact,
+        'userImage': user.userImage,
+        'updatedAt': DateTime.now(),
+      });
+    } catch (e) {
+      throw Exception('Failed to update user profile: $e');
+    }
+  }
+
+  // VENDOR OPERATIONS
+  Future<void> addVendor(Vendor vendor) async {
+    try {
+      await _firestore.collection('vendors').add(vendor.toMap());
+    } catch (e) {
+      throw Exception('Failed to add vendor: $e');
+    }
+  }
+
+  Future<List<Vendor>> getVendors() async {
+    try {
+      final snapshot = await _firestore
+          .collection('vendors')
+          .orderBy('name', descending: false)
+          .get();
+
+      return snapshot.docs
+          .map((doc) => Vendor.fromMap({...doc.data(), 'id': doc.id}))
+          .toList();
+    } catch (e) {
+      throw Exception('Failed to fetch vendors: $e');
+    }
+  }
+
+  Future<Vendor?> getVendorById(String vendorId) async {
+    try {
+      final doc = await _firestore.collection('vendors').doc(vendorId).get();
+      
+      if (doc.exists) {
+        return Vendor.fromMap({...doc.data() as Map<String, dynamic>, 'id': doc.id});
+      }
+      return null;
+    } catch (e) {
+      throw Exception('Failed to get vendor: $e');
+    }
+  }
+
+  Future<List<Vendor>> getVendorsByCategory(String category) async {
+    try {
+      final snapshot = await _firestore
+          .collection('vendors')
+          .where('category', isEqualTo: category)
+          .orderBy('name', descending: false)
+          .get();
+
+      return snapshot.docs
+          .map((doc) => Vendor.fromMap({...doc.data(), 'id': doc.id}))
+          .toList();
+    } catch (e) {
+      throw Exception('Failed to fetch vendors by category: $e');
+    }
+  }
+
+  Future<void> updateVendor(String vendorId, Vendor vendor) async {
+    try {
+      await _firestore.collection('vendors').doc(vendorId).update(vendor.toMap());
+    } catch (e) {
+      throw Exception('Failed to update vendor: $e');
+    }
+  }
+
+  Future<void> deleteVendor(String vendorId) async {
+    try {
+      await _firestore.collection('vendors').doc(vendorId).delete();
+    } catch (e) {
+      throw Exception('Failed to delete vendor: $e');
+    }
+  }
+
+  // VENDOR PRODUCT OPERATIONS
+  Future<void> addProduct(VendorProduct product) async {
+    try {
+      await _firestore.collection('products').add(product.toMap());
+    } catch (e) {
+      throw Exception('Failed to add product: $e');
+    }
+  }
+
+  Future<List<VendorProduct>> getProducts() async {
+    try {
+      final snapshot = await _firestore
+          .collection('products')
+          .orderBy('title', descending: false)
+          .get();
+
+      return snapshot.docs
+          .map((doc) => VendorProduct.fromMap(doc.data(), doc.id))
+          .toList();
+    } catch (e) {
+      throw Exception('Failed to fetch products: $e');
+    }
+  }
+
+  Future<List<VendorProduct>> getProductsByVendor(String vendorId) async {
+    try {
+      final snapshot = await _firestore
+          .collection('products')
+          .where('vendorID', isEqualTo: vendorId)
+          .orderBy('title', descending: false)
+          .get();
+
+      return snapshot.docs
+          .map((doc) => VendorProduct.fromMap(doc.data(), doc.id))
+          .toList();
+    } catch (e) {
+      throw Exception('Failed to fetch vendor products: $e');
+    }
+  }
+
+  Future<List<VendorProduct>> getProductsByCategory(String category) async {
+    try {
+      final snapshot = await _firestore
+          .collection('products')
+          .where('category', isEqualTo: category)
+          .orderBy('title', descending: false)
+          .get();
+
+      return snapshot.docs
+          .map((doc) => VendorProduct.fromMap(doc.data(), doc.id))
+          .toList();
+    } catch (e) {
+      throw Exception('Failed to fetch products by category: $e');
+    }
+  }
+
+  Future<void> updateProduct(String productId, VendorProduct product) async {
+    try {
+      await _firestore.collection('products').doc(productId).update(product.toMap());
+    } catch (e) {
+      throw Exception('Failed to update product: $e');
+    }
+  }
+
+  Future<void> deleteProduct(String productId) async {
+    try {
+      await _firestore.collection('products').doc(productId).delete();
+    } catch (e) {
+      throw Exception('Failed to delete product: $e');
+    }
+  }
+
+  // GALLERY OPERATIONS
+  Future<void> addGalleryItem(GalleryItem item) async {
+    try {
+      await _firestore.collection('gallery').add(item.toMap());
+    } catch (e) {
+      throw Exception('Failed to add gallery item: $e');
+    }
+  }
+
+  Future<List<GalleryItem>> getGalleryItems() async {
+    try {
+      final snapshot = await _firestore
+          .collection('gallery')
+          .orderBy('createdAt', descending: true)
+          .get();
+
+      return snapshot.docs
+          .map((doc) => GalleryItem.fromMap(doc.data(), doc.id))
+          .toList();
+    } catch (e) {
+      throw Exception('Failed to fetch gallery items: $e');
+    }
+  }
+
+  Future<List<GalleryItem>> getGalleryByCategory(String category) async {
+    try {
+      final snapshot = await _firestore
+          .collection('gallery')
+          .where('category', isEqualTo: category)
+          .orderBy('createdAt', descending: true)
+          .get();
+
+      return snapshot.docs
+          .map((doc) => GalleryItem.fromMap(doc.data(), doc.id))
+          .toList();
+    } catch (e) {
+      throw Exception('Failed to fetch gallery items: $e');
+    }
+  }
+
+  Future<void> updateGalleryItem(String itemId, GalleryItem item) async {
+    try {
+      await _firestore.collection('gallery').doc(itemId).update(item.toMap());
+    } catch (e) {
+      throw Exception('Failed to update gallery item: $e');
+    }
+  }
+
+  Future<void> deleteGalleryItem(String itemId) async {
+    try {
+      await _firestore.collection('gallery').doc(itemId).delete();
+    } catch (e) {
+      throw Exception('Failed to delete gallery item: $e');
     }
   }
 }

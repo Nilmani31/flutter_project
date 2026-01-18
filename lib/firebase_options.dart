@@ -59,4 +59,5 @@ class DefaultFirebaseOptions {
     projectId: 'wedding-panner-app-e9cd7',
     storageBucket: 'wedding-panner-app-e9cd7.firebasestorage.app',
   );
+
 }
