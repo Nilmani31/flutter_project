@@ -670,7 +670,7 @@ class _TasksPageState extends State<TasksPage> {
                 backgroundColor: const Color.fromARGB(255, 53, 30, 57),
                 child: const Icon(
                   Icons.add,
-                  color: Color.fromARGB(255, 76, 76, 75), // Gold color
+                  color: Color.fromARGB(255, 76, 76, 75), 
                   size: 32,
                   shadows: [
                     Shadow(
