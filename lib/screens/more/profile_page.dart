@@ -3,6 +3,7 @@ import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
 import '../../providers/user_provider.dart';
 import '../../providers/wedding_planner_provider.dart';
+import '../../models/wedding_model.dart';
 import 'dart:ui';
 
 
@@ -41,26 +42,62 @@ class _ProfilePageState extends State<ProfilePage> {
   @override
   void initState() {
     super.initState();
-    final user = Provider.of<UserProvider>(context, listen: false).currentUser;
-    _userIDController = TextEditingController(text: user?.userID ?? '');
-    _nameController = TextEditingController(text: user?.name ?? '');
-    _contactController = TextEditingController(text: user?.contact ?? '');
-    _emailController = TextEditingController(text: user?.email ?? '');
-    _userImageController = TextEditingController(text: user?.userImage ?? '');
-    _passwordController = TextEditingController(text: user?.password ?? '');
+    // Initialize controllers first (before build)
+    _initializeControllers();
+    // Then load fresh data after build completes
+    WidgetsBinding.instance.addPostFrameCallback((_) {
+      _loadProfileData();
+    });
+  }
 
-    // Load wedding profile from provider and pre-fill fields
-    final weddingProvider = Provider.of<WeddingPlannerProvider>(context, listen: false);
-    final wedding = weddingProvider.weddingProfile;
-    _weddingNameController = TextEditingController(text: wedding?.weddingName ?? '');
-    _brideNameController = TextEditingController(text: wedding?.brideName ?? '');
-    _groomNameController = TextEditingController(text: wedding?.groomName ?? '');
-    _locationController = TextEditingController(text: wedding?.location ?? '');
-    _budgetController = TextEditingController(text: wedding?.budget?.toString() ?? '');
-    _guestsController = TextEditingController(text: wedding?.expectedGuests?.toString() ?? '');
-    _notesController = TextEditingController(text: wedding?.notes ?? '');
-    _selectedTheme = wedding?.theme;
-    _selectedDate = wedding?.weddingDate;
+  void _initializeControllers() {
+    _userIDController = TextEditingController();
+    _nameController = TextEditingController();
+    _contactController = TextEditingController();
+    _emailController = TextEditingController();
+    _userImageController = TextEditingController();
+    _passwordController = TextEditingController();
+    _weddingNameController = TextEditingController();
+    _brideNameController = TextEditingController();
+    _groomNameController = TextEditingController();
+    _locationController = TextEditingController();
+    _budgetController = TextEditingController();
+    _guestsController = TextEditingController();
+    _notesController = TextEditingController();
+  }
+
+  Future<void> _loadProfileData() async {
+    try {
+      final user = Provider.of<UserProvider>(context, listen: false).currentUser;
+      _userIDController.text = user?.userID ?? '';
+      _nameController.text = user?.name ?? '';
+      _contactController.text = user?.contact ?? '';
+      _emailController.text = user?.email ?? '';
+      _userImageController.text = user?.userImage ?? '';
+      _passwordController.text = user?.password ?? '';
+
+      // Reload wedding profile from Firebase
+      final weddingProvider = Provider.of<WeddingPlannerProvider>(context, listen: false);
+      await weddingProvider.loadWeddingProfile();
+      
+      final wedding = weddingProvider.weddingProfile;
+      _weddingNameController.text = wedding?.weddingName ?? '';
+      _brideNameController.text = wedding?.brideName ?? '';
+      _groomNameController.text = wedding?.groomName ?? '';
+      _locationController.text = wedding?.location ?? '';
+      _budgetController.text = wedding?.budget?.toString() ?? '';
+      _guestsController.text = wedding?.expectedGuests?.toString() ?? '';
+      _notesController.text = wedding?.notes ?? '';
+      
+      if (mounted) {
+        setState(() {
+          _selectedTheme = wedding?.theme;
+          _selectedDate = wedding?.weddingDate;
+        });
+      }
+    } catch (e) {
+      print('Error loading profile: $e');
+    }
   }
 
   @override
@@ -84,8 +121,8 @@ class _ProfilePageState extends State<ProfilePage> {
   Future<void> _selectDate() async {
     final DateTime? picked = await showDatePicker(
       context: context,
-      initialDate: DateTime.now(),
-      firstDate: DateTime.now(),
+      initialDate: _selectedDate ?? DateTime.now(),
+      firstDate: DateTime(2020),
       lastDate: DateTime(2100),
     );
     if (picked != null && picked != _selectedDate) {
@@ -97,22 +134,69 @@ class _ProfilePageState extends State<ProfilePage> {
 
   Future<void> _saveProfile() async {
     if (!_formKey.currentState!.validate()) return;
+    if (_selectedDate == null) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(content: Text('Please select wedding date')),
+      );
+      return;
+    }
+    
     setState(() => _loading = true);
-    final userProvider = Provider.of<UserProvider>(context, listen: false);
-    final success = await userProvider.updateUserProfile(
-      newName: _nameController.text.trim(),
-      newContact: _contactController.text.trim(),
-      newUserImage: _userImageController.text.trim(),
-    );
-    setState(() => _loading = false);
-    if (success) {
-      ScaffoldMessenger.of(context).showSnackBar(
-        const SnackBar(content: Text('Profile updated successfully!')),
+    try {
+      final userProvider = Provider.of<UserProvider>(context, listen: false);
+      final weddingProvider = Provider.of<WeddingPlannerProvider>(context, listen: false);
+      
+      // Save user profile
+      final userSuccess = await userProvider.updateUserProfile(
+        newName: _nameController.text.trim(),
+        newContact: _contactController.text.trim(),
+        newUserImage: _userImageController.text.trim(),
       );
-    } else {
-      ScaffoldMessenger.of(context).showSnackBar(
-        SnackBar(content: Text(userProvider.authError)),
-      );
+      
+      if (userSuccess) {
+        // Save wedding profile
+        final weddingProfile = WeddingProfile(
+          id: weddingProvider.weddingProfile?.id,
+          userId: weddingProvider.weddingProfile?.userId,
+          weddingName: _weddingNameController.text.trim(),
+          brideName: _brideNameController.text.trim(),
+          groomName: _groomNameController.text.trim(),
+          weddingDate: _selectedDate!,
+          location: _locationController.text.trim(),
+          theme: _selectedTheme,
+          budget: double.tryParse(_budgetController.text.trim()),
+          expectedGuests: int.tryParse(_guestsController.text.trim()),
+          notes: _notesController.text.trim(),
+          createdAt: weddingProvider.weddingProfile?.createdAt,
+        );
+        
+        await weddingProvider.saveWeddingProfile(weddingProfile);
+        
+        if (mounted) {
+          ScaffoldMessenger.of(context).showSnackBar(
+            const SnackBar(
+              content: Text('Profile and wedding details saved successfully!'),
+              backgroundColor: Colors.green,
+            ),
+          );
+        }
+      } else {
+        if (mounted) {
+          ScaffoldMessenger.of(context).showSnackBar(
+            SnackBar(content: Text(userProvider.authError)),
+          );
+        }
+      }
+    } catch (e) {
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(content: Text('Error: $e')),
+        );
+      }
+    } finally {
+      if (mounted) {
+        setState(() => _loading = false);
+      }
     }
   }
 
@@ -269,10 +353,13 @@ class _ProfilePageState extends State<ProfilePage> {
                                 child: TextFormField(
                                   decoration: InputDecoration(
                                     labelText: 'Wedding Date',
-                                    hintText: _selectedDate == null
-                                        ? 'Select date'
-                                        : '${_selectedDate!.day}/${_selectedDate!.month}/${_selectedDate!.year}',
+                                    hintText: 'Select date',
                                     prefixIcon: const Icon(Icons.calendar_today),
+                                  ),
+                                  controller: TextEditingController(
+                                    text: _selectedDate == null
+                                        ? ''
+                                        : '${_selectedDate!.day}/${_selectedDate!.month}/${_selectedDate!.year}',
                                   ),
                                 ),
                               ),

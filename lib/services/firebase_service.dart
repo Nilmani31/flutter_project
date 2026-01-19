@@ -128,13 +128,13 @@ class FirebaseService {
         'weddingName': profile.weddingName,
         'brideName': profile.brideName,
         'groomName': profile.groomName,
-        'weddingDate': profile.weddingDate,
+        'weddingDate': profile.weddingDate.toIso8601String(),
         'location': profile.location,
         'theme': profile.theme,
         'expectedGuests': profile.expectedGuests,
         'budget': profile.budget,
         'notes': profile.notes,
-        'createdAt': profile.createdAt ?? FieldValue.serverTimestamp(),
+        'createdAt': profile.createdAt?.toIso8601String() ?? FieldValue.serverTimestamp(),
         'updatedAt': FieldValue.serverTimestamp(),
       });
     } catch (e) {
